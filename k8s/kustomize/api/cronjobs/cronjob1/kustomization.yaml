@@ -1,0 +1,3 @@
+nameSuffix: "-cronjob1"
+resources:
+- cronjob.yaml

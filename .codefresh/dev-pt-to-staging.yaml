@@ -1,0 +1,36 @@
+version: "1.0"
+stages:
+  - "prepare"
+  - "deploy"
+steps:
+  Clone:
+    type: "git-clone"
+    description: "Cloning main repository..."
+    repo: "rfarine/k8s"
+    revision: "${{CF_REVISION}}"
+    stage: "prepare"
+  ReplaceDevEnvVars:
+    title: "Passing Env Vars to Config"
+    image: "bitnami/git:latest"
+    working_directory: "${{Clone}}"
+    commands:
+      - bash .codefresh/replace-env-vars.sh
+    stage: "deploy"
+  Kustomize:
+    title: "Running kustomize overlays/${{OVERLAY}}"
+    image: "lyft/kustomizer:v3.3.0"
+    working_directory: "${{Clone}}"
+    commands:
+      - kustomize build "k8s/kustomize/$APP/overlays/$OVERLAY" > kustomized.yaml
+      - cat kustomized.yaml
+    stage: "deploy"
+  Deploy:
+    title: "Deploying to ${{NAMESPACE}}"
+    image: "codefresh/cf-deploy-kubernetes:master"
+    working_directory: "${{Clone}}"
+    commands:
+      - /cf-deploy-kubernetes kustomized.yaml
+    environment:
+      - KUBECONTEXT=k8s
+      - KUBERNETES_NAMESPACE=${{NAMESPACE}}
+    stage: "deploy"

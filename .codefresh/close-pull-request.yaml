@@ -1,0 +1,28 @@
+version: "1.0"
+stages:
+  - "prepare"
+  - "delete"
+steps:
+  main_clone:
+    type: "git-clone"
+    description: "Cloning main repository..."
+    repo: "rfarine/k8s"
+    revision: "${{CF_REVISION}}"
+    stage: "prepare"
+  DeleteResources:
+    title: "Delete Resources"
+    image: "bitnami/kubectl:1.16"
+    stage: "prepare"
+    # If it's exit code 1 don't fail the build
+    fail_fast: false
+    volumes:
+      - ${{CF_KUBECONFIG_PATH}}:/.kube/config
+    commands:
+     - kubectl config use-context ${{KUBE_CONTEXT}}
+     - NAMESPACE="dev-${{CF_PULL_REQUEST_NUMBER}}"
+     - EXISTS=`kubectl get namespace $NAMESPACE --no-headers --output=go-template={{.metadata.name}} 2>/dev/null`
+     # If the namespace doesn't exist, exit.
+     - if [ -z "${EXISTS}" ]; then exit 1; fi
+     - kubectl delete po,ing,svc,pv,pvc,ep,rc,deploy,replicaset,secret,certificate --all -n
+       "dev-${{CF_PULL_REQUEST_NUMBER}}"
+     - kubectl delete namespace "dev-${{CF_PULL_REQUEST_NUMBER}}"

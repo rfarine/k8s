@@ -1,0 +1,26 @@
+commonLabels:
+  environment: production
+commonAnnotations:
+  note: Production API
+bases:
+- ../common
+- ../../cronjobs
+
+patches:
+- path: deployment.yaml
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: api
+- path: cronjob.yaml
+  target:
+    group: batch
+    version: v1beta1
+    kind: CronJob
+
+configMapGenerator:
+- name: api-configmap
+  behavior: merge
+  files:
+  - additional-env.yaml

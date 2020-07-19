@@ -1,0 +1,53 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cron
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+          - name: vault-staging-tls-certificate
+            secret:
+              secretName: vault-staging-tls-certificate
+
+          initContainers:
+          - name: vault-authenticator
+            volumeMounts:
+            - name: vault-staging-tls-certificate
+              mountPath: /vault/tls/tls.crt
+              subPath: tls.crt
+
+          - name: consul-template
+            volumeMounts:
+            - name: vault-staging-tls-certificate
+              mountPath: /vault/tls/tls.crt
+              subPath: tls.crt
+            env:
+            - name: CT_LOCAL_CONFIG
+              value: |
+                vault {
+                  ssl {
+                    enabled = true
+                    server_name = "vault.staging.example.com"
+                  }
+
+                  vault_agent_token_file = "/var/run/secrets/vaultproject.io/.vault-token"
+
+                  retry {
+                    backoff = "1s"
+                  }
+                }
+
+                template {
+                  error_on_missing_key = true
+                  source = "/etc/api-config/env.yaml"
+                  destination = "/etc/secrets/config/env"
+                }
+
+                template {
+                  error_on_missing_key = true
+                  source = "/etc/api-config/additional-env.yaml"
+                  destination = "/etc/secrets/config/additional"
+                }

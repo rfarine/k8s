@@ -1,0 +1,7 @@
+commonLabels:
+  environment: dev
+commonAnnotations:
+  note: Dev Components
+  pr-number: "{{ PR_NUMBER }}"
+bases:
+- ../../base

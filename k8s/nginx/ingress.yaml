@@ -1,0 +1,74 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-api
+  namespace: {{NAMESPACE}}
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS, PATCH, DELETE"
+    nginx.ingress.kubernetes.io/cors-allow-origin: {{SUBDOMAIN}}.example.com
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization,x-access-token"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1$2$3
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+spec:
+  rules:
+  - host: {{API_URL}}
+    http:
+      paths:
+      - path: /(api)(/?)(.*)
+        backend:
+          serviceName: api-service
+          servicePort: 80
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-react
+  namespace: {{NAMESPACE}}
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+  - host: {{REACT_URL}}
+    http:
+      paths:
+      - path: /login
+        backend:
+          serviceName: react-service
+          servicePort: 80
+      - path: /health
+        backend:
+          serviceName: react-service
+          servicePort: 80
+      - path: /static
+        backend:
+          serviceName: react-service
+          servicePort: 80
+      - path: /api
+        backend:
+          serviceName: api-service
+          servicePort: 80
+      - path: /
+        backend:
+          serviceName: react-service
+          servicePort: 80
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-components
+  namespace: {{NAMESPACE}}
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - host: {{COMPONENTS_URL}}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: components-service
+          servicePort: 80

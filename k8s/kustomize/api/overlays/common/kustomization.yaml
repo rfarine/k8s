@@ -1,0 +1,8 @@
+bases:
+- ../../base
+
+configMapGenerator:
+- name: api-configmap
+  behavior: merge
+  files:
+  - additional-env.yaml

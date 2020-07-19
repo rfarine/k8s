@@ -1,0 +1,133 @@
+version: "1.0"
+stages:
+  - "prepare"
+  - "build"
+  - "push"
+  - "deploy"
+steps:
+  Clone:
+    type: "git-clone"
+    description: "Cloning main repository..."
+    repo: "rfarine/k8s"
+    revision: "${{CF_REVISION}}"
+    stage: "prepare"
+  SetGithubStatusToPending:
+    title: Set GitHub Dev Environment deployment status to pending
+    image: cloudposse/github-status-updater
+    stage: "prepare"
+    when:
+      branch:
+        ignore:
+          - master
+    environment:
+      - GITHUB_ACTION=update_state
+      - GITHUB_TOKEN=${{GITHUB_TOKEN}}
+      - GITHUB_OWNER=rfarine
+      - GITHUB_REPO=k8s
+      - GITHUB_REF=${{CF_REVISION}}
+      - GITHUB_CONTEXT=API (${{NAMESPACE}})
+      - GITHUB_STATE=pending
+      - GITHUB_DESCRIPTION=Deploying changes to ${{NAMESPACE}} namespace
+      - GITHUB_TARGET_URL=https://${{API_URL}}
+  Build:
+    title: "Building Docker Image"
+    type: "build"
+    image_name: "k8s/${{APP}}"
+    working_directory: "${{Clone}}"
+    tag: "api-${{CF_BRANCH_TAG_NORMALIZED}}-${{CF_SHORT_REVISION}}"
+    dockerfile: "Dockerfile.${{APP}}"
+    stage: "build"
+  PushDockerImage:
+    title: "Pushing image to ECR"
+    type: "push"
+    registry: "ecr"
+    candidate: "${{Build}}"
+    tags:
+      - "${{CF_BRANCH_TAG_NORMALIZED}}-${{CF_SHORT_REVISION}}"
+    stage: "push"
+  ReplaceEnvVars:
+    title: "Passing Env Vars to Config"
+    image: "bitnami/git:latest"
+    working_directory: "${{Clone}}"
+    commands:
+      - bash .codefresh/replace-env-vars.sh
+    environment:
+      - IMAGE="${{ECR_REGISTRY}}${{APP}}:${{CF_BRANCH_TAG_NORMALIZED}}-${{CF_SHORT_REVISION}}"
+    stage: "deploy"
+  Kustomize:
+    title: "Running kustomize overlays/${{OVERLAY}}"
+    image: "lyft/kustomizer:v3.3.0"
+    working_directory: "${{Clone}}"
+    commands:
+      - kustomize build "k8s/kustomize/$APP/overlays/$OVERLAY" > kustomized.yaml
+      - cat kustomized.yaml
+    stage: "deploy"
+  Deploy:
+    title: "Deploying to ${{NAMESPACE}}"
+    image: "codefresh/cf-deploy-kubernetes:master"
+    working_directory: "${{Clone}}"
+    commands:
+      - /cf-deploy-kubernetes kustomized.yaml
+    environment:
+      - KUBECONTEXT=k8s
+      - KUBERNETES_NAMESPACE=${{NAMESPACE}}
+    stage: "deploy"
+  SetGithubStatusToSuccess:
+    title: Set GitHub Dev Environment deployment status to success
+    image: cloudposse/github-status-updater
+    stage: "deploy"
+    when:
+      branch:
+        ignore:
+          - master
+    environment:
+      - GITHUB_ACTION=update_state
+      - GITHUB_TOKEN=${{GITHUB_TOKEN}}
+      - GITHUB_OWNER=rfarine
+      - GITHUB_REPO=k8s
+      - GITHUB_REF=${{CF_REVISION}}
+      - GITHUB_CONTEXT=API (${{NAMESPACE}})
+      - GITHUB_STATE=success
+      - GITHUB_DESCRIPTION=Deployed changes to ${{NAMESPACE}} namespace
+      - GITHUB_TARGET_URL=https://${{API_URL}}
+  SendSlackNotification:
+    stage: "deploy"
+    title: Send notification to Builds Slack channel
+    image: cloudposse/slack-notifier
+    when:
+      condition:
+        all:
+          isStagingNamespace: '"${{NAMESPACE}}" == "staging"'
+    environment:
+      - SLACK_WEBHOOK_URL=${{SLACK_BUILDS_CH_WEBHOOK}}
+      - SLACK_USER_NAME=CodeFresh
+      - "SLACK_ICON_EMOJI=:rocket:"
+      - SLACK_FALLBACK=API Deployed
+      - SLACK_COLOR=good
+      - SLACK_AUTHOR_NAME=CodeFresh Deploy
+      - SLACK_AUTHOR_LINK=https://codefresh.io
+      - SLACK_AUTHOR_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/small-cute-robot-square.png
+      - SLACK_TITLE=API Deployed
+      - SLACK_TITLE_LINK=${{CF_BUILD_URL}}
+      - "SLACK_TEXT=The latest changes have been deployed to\n :point_right: ${{API_URL}}"
+      - SLACK_THUMB_URL=""
+      - SLACK_FOOTER=Kubernetes Deployment
+      - SLACK_FOOTER_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/kubernetes.png
+      - SLACK_FIELD1_TITLE=Namespace
+      - SLACK_FIELD1_VALUE=${{NAMESPACE}}
+      - SLACK_FIELD1_SHORT=true
+      - SLACK_FIELD2_TITLE=Repository
+      - SLACK_FIELD2_VALUE=${{CF_REPO_NAME}}
+      - SLACK_FIELD2_SHORT=true
+      - SLACK_FIELD3_TITLE=Commit
+      - SLACK_FIELD3_VALUE=${{CF_SHORT_REVISION}}
+      - SLACK_FIELD3_SHORT=true
+      - SLACK_FIELD4_TITLE=Author
+      - SLACK_FIELD4_VALUE=@${{CF_COMMIT_AUTHOR}}
+      - SLACK_FIELD4_SHORT=true
+      - SLACK_FIELD5_TITLE=Branch/Tag
+      - SLACK_FIELD5_VALUE=${{CF_BRANCH}}
+      - SLACK_FIELD5_SHORT=false
+      - SLACK_FIELD6_TITLE=Build URL
+      - SLACK_FIELD6_VALUE=${{CF_BUILD_URL}}
+      - SLACK_FIELD6_SHORT=false

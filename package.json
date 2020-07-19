@@ -1,0 +1,49 @@
+{
+  "name": "root",
+  "private": "true",
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ],
+    "nohoist": [
+      "**/babel-eslint",
+      "**/babel-loader",
+      "**/eslint",
+      "**/jest",
+      "**/webpack",
+      "**/react-scripts",
+      "**/react-scripts/**",
+      "**/eslint-config-react-app",
+      "**/eslint-config-react-app/**"
+    ]
+  },
+  "scripts": {
+    "bootstrap": "lerna bootstrap",
+    "clean": "lerna run clean && lerna clean && rimraf node_modules",
+    "build": "lerna run build",
+    "build:static": "lerna run build:static",
+    "lint": "lerna run --stream lint",
+    "lint:fix": "lerna run --stream lint:fix",
+    "start:apps": "lerna run --parallel start",
+    "stop:docker": "lerna run --stream stop:docker",
+    "test": "lerna run --stream test",
+    "test:react": "lerna run --stream test --scope @k8s/react",
+    "tdd": "lerna run --stream tdd"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lerna run --stream precommit"
+    }
+  },
+  "devDependencies": {
+    "env-cmd": "^8.0.2",
+    "husky": "^1.3.1",
+    "lerna": "^3.22.0",
+    "rimraf": "^2.7.1"
+  },
+  "babelMacros": {
+    "styledComponents": {
+      "pure": true
+    }
+  }
+}

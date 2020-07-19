@@ -1,0 +1,48 @@
+#
+### BUILD
+#
+FROM node:12 as build
+
+RUN apt-get update && apt-get -y upgrade
+
+RUN yarn global add lerna@3.10.7
+RUN mkdir -p /code
+WORKDIR /code
+
+# Take advantage of docker layer caching for node_modules/
+COPY package.json yarn.lock ./
+ADD package.json /tmp/package.json
+ADD yarn.lock /tmp/yarn.lock
+RUN cd /tmp && yarn
+RUN cp -a /tmp/node_modules /code/
+
+WORKDIR /code
+
+# Copy over necessary packages
+COPY packages/react packages/react
+COPY packages/components packages/components
+COPY packages/tools packages/tools
+COPY lerna.json .
+
+ENV NODE_PATH src
+ENV REACT_APP_K8S_ENABLED true
+
+# Bootstrap to symlink other packages, build applications
+RUN yarn bootstrap
+RUN yarn build
+
+#
+### TEST
+#
+FROM node:12 as test
+
+RUN mkdir -p /code
+WORKDIR /code
+
+ENV NODE_PATH src
+ENV REACT_APP_K8S_ENABLED true
+
+COPY --from=build /code/ .
+RUN yarn bootstrap
+RUN yarn test:react
+

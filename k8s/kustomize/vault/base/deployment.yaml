@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+  annotations:
+    {}
+
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vault
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      containers:
+      - name: vault
+        image: "vault:1.1.3"
+        imagePullPolicy: IfNotPresent
+        args: ["server"]
+        resources:
+          requests:
+            memory: "128Mi"
+          limits:
+            memory: "128Mi"
+        ports:
+        - containerPort: 8200
+          name: https
+          protocol: TCP
+        - containerPort: 8201
+          name: cluster-address
+          protocol: TCP
+        livenessProbe:
+          # Alive if Vault is successfully responding to requests
+          httpGet:
+            path: /v1/sys/health?standbyok=true&uninitcode=204&sealedcode=204&
+            port: 8200
+            scheme: HTTPS
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          # Ready depends on preference
+          httpGet:
+            path: /v1/sys/health?standbycode=204&uninitcode=204&
+            port: 8200
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        securityContext:
+          capabilities:
+            add:
+            - IPC_LOCK
+        env:
+          - name: VAULT_LOG_LEVEL
+            value: "debug"
+          - name: VAULT_UI
+            value: "true"
+
+        resources:
+          {}
+
+        volumeMounts:
+        - name: vault-root
+          mountPath: /root/
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: 'vault'
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+
+      serviceAccountName: vault
+
+      volumes:
+      - name: vault-root
+        emptyDir: {}

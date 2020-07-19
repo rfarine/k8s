@@ -1,0 +1,17 @@
+commonLabels:
+  environment: production
+commonAnnotations:
+  note: Production Vault
+bases:
+- ../../base
+patches:
+- path: deployment.yaml
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+- path: cert.yaml
+  target:
+    group: certmanager.k8s.io
+    version: v1alpha1
+    kind: Certificate

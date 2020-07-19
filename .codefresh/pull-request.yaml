@@ -1,0 +1,119 @@
+version: "1.0"
+stages:
+  - "prepare"
+  - "deploy"
+steps:
+  main_clone:
+    type: "git-clone"
+    description: "Cloning main repository..."
+    repo: "rfarine/k8s"
+    revision: "${{CF_REVISION}}"
+    stage: "prepare"
+  CreateVariables:
+    title: "Create Common Variables"
+    type: "freestyle"
+    image: "alpine:latest"
+    stage: "prepare"
+    commands:
+      - export PR_NUMBER="${{CF_PULL_REQUEST_NUMBER}}"
+      - export NAMESPACE="dev-${PR_NUMBER}"
+      - export API_URL="api-${PR_NUMBER}.dev.${{DOMAIN}}"
+      - export REACT_URL="react-${PR_NUMBER}.dev.${{DOMAIN}}"
+      - export COMPONENTS_URL="components-${PR_NUMBER}.dev.${{DOMAIN}}"
+      - cf_export PR_NUMBER NAMESPACE API_URL REACT_URL COMPONENTS_URL
+  CreateNamespace:
+    title: "Create New Namespace/Copy Staging Secrets"
+    image: "bitnami/kubectl:1.16"
+    stage: "prepare"
+    fail_fast: false # If the commands error out, don't fail
+    working_directory: "${{main_clone}}"
+    volumes:
+      - ${{CF_KUBECONFIG_PATH}}:/.kube/config
+    commands:
+      - bash .codefresh/create-namespace.sh
+  ReplaceEnvVars:
+    title: "Passing Env Vars to Config"
+    image: alpine
+    working_directory: "${{main_clone}}"
+    stage: "deploy"
+    commands:
+      - sed -i "s~{{ NAMESPACE }}~$NAMESPACE~g" k8s/kustomize/vault/overlays/dev/service.yaml
+      - sed -i "s~{{ NAMESPACE }}~$NAMESPACE~g" k8s/kustomize/vault/overlays/dev/cert.yaml
+    environment:
+      - NAMESPACE=${{NAMESPACE}}
+  KustomizeVaultService:
+    title: "Running kustomize vault/overlays/${{OVERLAY}}"
+    image: "lyft/kustomizer:v3.3.0"
+    working_directory: "${{main_clone}}"
+    commands:
+      - kustomize build "k8s/kustomize/vault/overlays/$OVERLAY" > kustomized.yaml
+      - cat kustomized.yaml
+    stage: "deploy"
+  DeployVaultService:
+    title: "Deploying Vault service and cert to dev ns"
+    image: "codefresh/cf-deploy-kubernetes:master"
+    working_directory: "${{main_clone}}"
+    commands:
+      - /cf-deploy-kubernetes kustomized.yaml
+    environment:
+      - KUBECONTEXT=k8s
+      - KUBERNETES_NAMESPACE=${{NAMESPACE}}
+    stage: "deploy"
+  DeployToDevNamespace:
+    title: Build and Deploy Apps to Dev Namespace
+    type: codefresh-run
+    stage: "deploy"
+    arguments:
+      PIPELINE_ID: default/Deploy
+      VARIABLE:
+        - CF_BRANCH="${{CF_BRANCH}}"
+        - CF_REVISION="${{CF_REVISION}}"
+        - CF_SHORT_REVISION="${{CF_SHORT_REVISION}}"
+        - CF_BRANCH_TAG_NORMALIZED="${{CF_BRANCH_TAG_NORMALIZED}}"
+        - CF_REPO_NAME="${{CF_REPO_NAME}}"
+        - CF_COMMIT_AUTHOR="${{CF_COMMIT_AUTHOR}}"
+        - CF_BUILD_URL="${{CF_BUILD_URL}}"
+        - NAMESPACE="${{NAMESPACE}}"
+        - SUBDOMAIN="${{PR_NUMBER}}.${{OVERLAY}}"
+        - OVERLAY="${{OVERLAY}}"
+        - API_URL="${{API_URL}}"
+        - REACT_URL="${{REACT_URL}}"
+        - COMPONENTS_URL="${{COMPONENTS_URL}}"
+        - PR_NUMBER="${{PR_NUMBER}}"
+  SendSlackNotification:
+    stage: "deploy"
+    title: Send notification to Builds Slack channel
+    image: cloudposse/slack-notifier
+    environment:
+      - SLACK_WEBHOOK_URL=${{SLACK_BUILDS_CH_WEBHOOK}}
+      - SLACK_USER_NAME=CodeFresh
+      - "SLACK_ICON_EMOJI=:construction:"
+      - SLACK_FALLBACK=PR Deployed
+      - SLACK_COLOR=good
+      - SLACK_AUTHOR_NAME=CodeFresh Deploy
+      - SLACK_AUTHOR_LINK=https://codefresh.io
+      - SLACK_AUTHOR_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/small-cute-robot-square.png
+      - SLACK_TITLE=PR Deployed
+      - SLACK_TITLE_LINK=${{CF_BUILD_URL}}
+      - "SLACK_TEXT=Pull Request Preview at\n ${{API_URL}}\n ${{COMPONENTS_URL}}\n ${{REACT_URL}}"
+      - SLACK_THUMB_URL=""
+      - SLACK_FOOTER=Kubernetes Deployment
+      - SLACK_FOOTER_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/kubernetes.png
+      - SLACK_FIELD1_TITLE=Namespace
+      - SLACK_FIELD1_VALUE=${{NAMESPACE}}
+      - SLACK_FIELD1_SHORT=true
+      - SLACK_FIELD2_TITLE=Repository
+      - SLACK_FIELD2_VALUE=${{CF_REPO_NAME}}
+      - SLACK_FIELD2_SHORT=true
+      - SLACK_FIELD3_TITLE=Commit
+      - SLACK_FIELD3_VALUE=${{CF_SHORT_REVISION}}
+      - SLACK_FIELD3_SHORT=true
+      - SLACK_FIELD4_TITLE=Author
+      - SLACK_FIELD4_VALUE=@${{CF_COMMIT_AUTHOR}}
+      - SLACK_FIELD4_SHORT=true
+      - SLACK_FIELD5_TITLE=Branch/Tag
+      - SLACK_FIELD5_VALUE=${{CF_BRANCH}}
+      - SLACK_FIELD5_SHORT=false
+      - SLACK_FIELD6_TITLE=Build URL
+      - SLACK_FIELD6_VALUE=${{CF_BUILD_URL}}
+      - SLACK_FIELD6_SHORT=false

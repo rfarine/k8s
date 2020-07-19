@@ -1,0 +1,9 @@
+bases:
+- cronjob1
+
+patches:
+- path: cronjob.yaml
+  target:
+    group: batch
+    version: v1beta1
+    kind: CronJob

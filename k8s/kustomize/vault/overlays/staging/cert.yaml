@@ -1,0 +1,18 @@
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: vault-tls-certificate
+  namespace: staging
+spec:
+  issuerRef:
+    name: production-clusterissuer
+    kind: ClusterIssuer
+  secretName: vault-staging-tls-certificate
+  dnsNames:
+  - "vault.staging.example.com"
+  acme:
+    config:
+    - dns01:
+        provider: route53
+      domains:
+      - "vault.staging.example.com"

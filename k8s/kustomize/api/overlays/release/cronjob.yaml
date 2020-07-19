@@ -1,0 +1,45 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: cron
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          initContainers:
+          - name: consul-template
+            env:
+            - name: CT_LOCAL_CONFIG
+              value: |
+                vault {
+                  ssl {
+                    enabled = true
+                    server_name = "vault.staging.example.com"
+                  }
+
+                  vault_agent_token_file = "/var/run/secrets/vaultproject.io/.vault-token"
+
+                  retry {
+                    backoff = "1s"
+                  }
+                }
+
+                template {
+                  error_on_missing_key = true
+                  source = "/etc/api-config/env.yaml"
+                  destination = "/etc/secrets/config/env"
+                }
+
+                template {
+                  error_on_missing_key = true
+                  source = "/etc/api-config/additional-env.yaml"
+                  destination = "/etc/secrets/config/additional"
+                }
+
+                template {
+                  error_on_missing_key = true
+                  source = "/etc/api-config/release.yaml"
+                  destination = "/etc/secrets/config/release"
+                }
+

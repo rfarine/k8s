@@ -1,0 +1,12 @@
+namePrefix: staging-
+commonLabels:
+  environment: staging
+commonAnnotations:
+  note: Staging Vault Restart Cronjob
+bases:
+- ../../base
+patchesStrategicMerge:
+- cronjob.yaml
+- serviceaccount.yaml
+- clusterrole.yaml
+- clusterrolebinding.yaml

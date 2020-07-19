@@ -1,0 +1,8 @@
+commonLabels:
+  environment: release
+commonAnnotations:
+  note: Release Vault
+
+resources:
+- cert.yaml
+- service.yaml

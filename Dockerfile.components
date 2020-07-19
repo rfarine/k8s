@@ -1,0 +1,32 @@
+FROM node:12 as build
+
+RUN yarn global add lerna@3.10.7
+
+RUN mkdir -p /code
+
+WORKDIR /code
+
+COPY package.json yarn.lock ./
+
+RUN yarn
+
+COPY packages/components packages/components
+COPY packages/tools packages/tools
+
+COPY lerna.json .
+
+RUN yarn bootstrap
+
+RUN yarn build:static
+
+FROM nginx:alpine
+
+COPY --from=build /code/packages/components/built /usr/share/nginx/html
+
+RUN rm /etc/nginx/conf.d/default.conf
+
+COPY --from=build /code/packages/components/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 3003
+
+CMD ["nginx", "-g", "daemon off;"]

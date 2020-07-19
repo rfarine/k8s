@@ -1,0 +1,8 @@
+commonLabels:
+  environment: dev
+commonAnnotations:
+  note: Dev Pointing to Staging Components
+  pr-number: "{{ PR_NUMBER }}"
+
+resources:
+- service.yaml

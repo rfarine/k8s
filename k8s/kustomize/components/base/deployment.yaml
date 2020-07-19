@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: components
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: components
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5
+  template:
+    metadata:
+      labels:
+        app: components
+        tier: frontend
+    spec:
+      priorityClassName: low
+
+      containers:
+      - name: components
+        image: {{ IMAGE }}
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 3003
+        resources:
+          requests:
+            memory: "15Mi"
+            cpu: "25m"
+          limits:
+            memory: "15Mi"
+            cpu: "25m"

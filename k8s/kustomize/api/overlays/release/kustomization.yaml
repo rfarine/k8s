@@ -1,0 +1,30 @@
+commonLabels:
+  environment: release
+commonAnnotations:
+  note: Release API
+bases:
+- ../staging
+
+patches:
+- path: deployment.yaml
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: api
+- path: cronjob.yaml
+  target:
+    group: batch
+    version: v1beta1
+    kind: CronJob
+- path: hpa.yaml
+  target:
+    group: autoscaling
+    version: v2beta2
+    kind: HorizontalPodAutoscaler
+
+configMapGenerator:
+- name: api-configmap
+  behavior: merge
+  files:
+  - release.yaml

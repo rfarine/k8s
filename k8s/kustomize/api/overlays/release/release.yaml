@@ -1,0 +1,3 @@
+BILLING:
+  targetOrigin: https://{{ REACT_URL }}
+

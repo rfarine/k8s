@@ -1,0 +1,7 @@
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: react
+spec:
+  minReplicas: 1
+  maxReplicas: 2

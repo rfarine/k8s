@@ -1,0 +1,35 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: ingress-nginx
+  namespace: ingress-nginx
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "CERT ARN HERE -- redacted for this repo..."
+    # the backend instances are HTTP
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+    # Map port 443
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+    # Ensure the ELB idle timeout is less than nginx keep-alive timeout. By
+    # default,
+    # NGINX keep-alive is set to 75s. If using WebSockets, the value will need
+    # to be
+    # increased to '3600' to avoid any potential issues.
+    service.beta.kubernetes.io/aws-load-balancer-connection-idle-timeout: "3600"
+    service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+    - name: https
+      port: 443
+      targetPort: http
+
+---

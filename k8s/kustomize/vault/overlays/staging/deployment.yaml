@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault
+spec:
+  template:
+    metadata:
+      annotations:
+        iam.amazonaws.com/role: arn:aws:iam::000000000000:role/VaultStaging
+    spec:
+      volumes:
+      - name: vault-staging-tls-certificate
+        secret:
+          secretName: vault-staging-tls-certificate
+
+      containers:
+        - name: vault
+          volumeMounts:
+          - name: vault-staging-tls-certificate
+            mountPath: /vault/tls
+
+          env:
+          - name: POD_IP_ADDR
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: VAULT_CLUSTER_ADDR
+            value: "https://$(POD_IP_ADDR):8201"
+          - name: VAULT_API_ADDR
+            value: "https://vault.staging.example.com"
+          - name: VAULT_LOCAL_CONFIG
+            value: |
+              api_addr     = "https://vault.staging.example.com"
+              cluster_addr = "https://$(POD_IP_ADDR):8201"
+              log_level = "warn"
+              ui = true
+              storage "dynamodb" {
+                region     = "us-east-1",
+                table      = "vault-staging"
+                ha_enabled = "true"
+              }
+              seal "awskms" {
+               region = "us-east-1",
+               kms_key_id = "b715f6bc-ec98-4bd4-91fa-abb424c18d40"
+              }
+              listener "tcp" {
+                address     = "127.0.0.1:8200"
+                tls_disable = "true"
+              }
+              listener "tcp" {
+                address       = "$(POD_IP_ADDR):8200"
+                tls_cert_file = "/vault/tls/tls.crt"
+                tls_key_file  = "/vault/tls/tls.key"
+                tls_disable_client_certs = true
+                tls_cipher_suites = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_256_CBC_SHA",
+                tls_prefer_server_cipher_suites = true
+              }

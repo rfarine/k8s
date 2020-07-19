@@ -1,0 +1,8 @@
+commonLabels:
+  environment: production
+commonAnnotations:
+  note: Production React
+bases:
+- ../../base
+patchesStrategicMerge:
+- deployment.yaml

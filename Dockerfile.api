@@ -1,0 +1,28 @@
+FROM node:12
+
+RUN apt-get update && apt-get -y upgrade && apt-get install -y jq && \
+  apt-get install -y python-pip && \
+  apt-get install psmisc && \
+  pip install yq
+
+RUN yarn global add lerna@3.10.7
+
+RUN mkdir -p /code
+
+WORKDIR /code
+
+COPY package.json yarn.lock ./
+
+RUN yarn
+
+COPY packages/api packages/api
+
+COPY lerna.json .
+
+RUN yarn bootstrap
+
+WORKDIR packages/api
+
+RUN yarn
+
+EXPOSE 3001

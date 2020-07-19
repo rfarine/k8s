@@ -1,0 +1,7 @@
+commonLabels:
+  environment: staging
+commonAnnotations:
+  note: Staging Components
+bases:
+- ../../base
+

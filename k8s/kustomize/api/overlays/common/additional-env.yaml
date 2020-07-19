@@ -1,0 +1,5 @@
+EXTRA:
+  {{- with secret "shared/extra" }}
+  something: {{ .Data.data.clientId }}
+  {{ end }}
+

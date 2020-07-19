@@ -1,0 +1,20 @@
+# On "make release" trigger a tag/release of master. Tag will trigger the release
+# pipeline in Codefresh...
+name: Release
+
+on: repository_dispatch
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Bump version and push tag
+      uses: anothrNick/github-tag-action@1.17.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        WITH_V: true
+        DEFAULT_BUMP: patch
+        RELEASE_BRANCHES: master

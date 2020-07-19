@@ -1,0 +1,162 @@
+version: "1.0"
+stages:
+  - "clone"
+  - "regression-test"
+  - "approve"
+  - "release"
+steps:
+  main_clone:
+    type: "git-clone"
+    description: "Cloning main repository..."
+    repo: "rfarine/k8s"
+    revision: "${{CF_REVISION}}"
+    stage: "clone"
+  DeployToReleaseNamespace:
+    title: Build and Deploy Apps to Release Namespace
+    type: codefresh-run
+    stage: "regression-test"
+    arguments:
+      PIPELINE_ID: default/Deploy
+      VARIABLE:
+        - CF_BRANCH="${{CF_BRANCH}}"
+        - CF_REVISION="${{CF_REVISION}}"
+        - CF_SHORT_REVISION="${{CF_SHORT_REVISION}}"
+        - CF_BRANCH_TAG_NORMALIZED="${{CF_BRANCH_TAG_NORMALIZED}}"
+        - CF_REPO_NAME="${{CF_REPO_NAME}}"
+        - CF_COMMIT_AUTHOR="${{CF_COMMIT_AUTHOR}}"
+        - CF_BUILD_URL="${{CF_BUILD_URL}}"
+        - NAMESPACE="${{NAMESPACE}}"
+        - OVERLAY="${{OVERLAY}}"
+        - API_URL="api.${{NAMESPACE}}.${{DOMAIN}}"
+        - REACT_URL="witches.${{NAMESPACE}}.${{DOMAIN}}"
+        - COMPONENTS_URL="components.${{NAMESPACE}}.${{DOMAIN}}"
+        - PR_NUMBER="0"
+        - SUBDOMAIN="${{SUBDOMAIN}}"
+  SendRegressionTestSlackNotification:
+    stage: "regression-test"
+    title: Send notification to Releases Slack channel
+    image: cloudposse/slack-notifier
+    environment:
+      - SLACK_WEBHOOK_URL=${{SLACK_RELEASES_CH_WEBHOOK}}
+      - SLACK_USER_NAME=CodeFresh
+      - "SLACK_ICON_EMOJI=:spiral_note_pad:"
+      - SLACK_FALLBACK=Release Ready for Regression Test
+      - SLACK_COLOR=good
+      - SLACK_AUTHOR_NAME=CodeFresh Deploy
+      - SLACK_AUTHOR_LINK=https://codefresh.io
+      - SLACK_AUTHOR_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/small-cute-robot-square.png
+      - SLACK_TITLE=Release Ready for Regression Test
+      - SLACK_TITLE_LINK=${{CF_BUILD_URL}}
+      - "SLACK_TEXT=Release ready for regression at\n api.${{SUBDOMAIN}}.${{DOMAIN}}\n
+        components.${{SUBDOMAIN}}.${{DOMAIN}}\n  react.${{SUBDOMAIN}}.${{DOMAIN}}"
+      - SLACK_THUMB_URL=https://cloudposse.com/wp-conten/uploads/sites/29/2018/02/SquareLogo2.png
+      - SLACK_FOOTER=Kubernetes Deployment
+      - SLACK_FOOTER_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/kubernetes.png
+      - SLACK_FIELD1_TITLE=Namespace
+      - SLACK_FIELD1_VALUE=${{NAMESPACE}}
+      - SLACK_FIELD1_SHORT=true
+      - SLACK_FIELD2_TITLE=Repository
+      - SLACK_FIELD2_VALUE=${{CF_REPO_NAME}}
+      - SLACK_FIELD2_SHORT=true
+      - SLACK_FIELD3_TITLE=Commit
+      - SLACK_FIELD3_VALUE=${{CF_SHORT_REVISION}}
+      - SLACK_FIELD3_SHORT=true
+      - SLACK_FIELD4_TITLE=Author
+      - SLACK_FIELD4_VALUE=@${{CF_COMMIT_AUTHOR}}
+      - SLACK_FIELD4_SHORT=true
+      - SLACK_FIELD5_TITLE=Branch/Tag
+      - SLACK_FIELD5_VALUE=${{CF_BRANCH}}
+      - SLACK_FIELD5_SHORT=false
+      - SLACK_FIELD6_TITLE=Build URL
+      - SLACK_FIELD6_VALUE=${{CF_BUILD_URL}}
+      - SLACK_FIELD6_SHORT=false
+  Approve:
+    type: pending-approval
+    title: "Regression test passed?"
+    stage: "approve"
+  SendApprovedSlackNotification:
+    when:
+      steps:
+      - name: Approve
+        on:
+          - approved
+    stage: "approve"
+    title: Send notification to Releases Slack channel
+    image: cloudposse/slack-notifier
+    environment:
+      - SLACK_WEBHOOK_URL=${{SLACK_RELEASES_CH_WEBHOOK}}
+      - SLACK_USER_NAME=CodeFresh
+      - "SLACK_ICON_EMOJI=:tada:"
+      - SLACK_FALLBACK=Regression Test Approved
+      - SLACK_COLOR=good
+      - SLACK_AUTHOR_NAME=CodeFresh Deploy
+      - SLACK_AUTHOR_LINK=https://codefresh.io
+      - SLACK_AUTHOR_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/small-cute-robot-square.png
+      - SLACK_TITLE=Regression Test Approved
+      - SLACK_TITLE_LINK=${{CF_BUILD_URL}}
+      - SLACK_TEXT=Regression test was approved. Promoting release to production!
+      - SLACK_THUMB_URL=https://cloudposse.com/wp-conten/uploads/sites/29/2018/02/SquareLogo2.png
+      - SLACK_FOOTER=CodeFresh Approval
+  DeployToProductionNamespace:
+    when:
+      steps:
+      - name: Approve
+        on:
+          - approved
+    title: Build and Deploy Apps to Production
+    type: codefresh-run
+    stage: "release"
+    arguments:
+      PIPELINE_ID: default/Deploy
+      VARIABLE:
+        - CF_BRANCH="${{CF_BRANCH}}"
+        - CF_REVISION="${{CF_REVISION}}"
+        - CF_SHORT_REVISION="${{CF_SHORT_REVISION}}"
+        - CF_BRANCH_TAG_NORMALIZED="${{CF_BRANCH_TAG_NORMALIZED}}"
+        - CF_REPO_NAME="${{CF_REPO_NAME}}"
+        - CF_COMMIT_AUTHOR="${{CF_COMMIT_AUTHOR}}"
+        - CF_BUILD_URL="${{CF_BUILD_URL}}"
+        - NAMESPACE="production"
+        - API_URL="api.${{DOMAIN}}"
+        - REACT_URL="react.${{DOMAIN}}"
+        - COMPONENTS_URL="components.${{DOMAIN}}"
+        - PR_NUMBER="0"
+        - SUBDOMAIN="${{NAMESPACE}}"
+        - OVERLAY="production"
+  SendReleaseSlackNotification:
+    stage: "release"
+    title: Send notification to Releases Slack channel
+    image: cloudposse/slack-notifier
+    environment:
+      - SLACK_WEBHOOK_URL=${{SLACK_RELEASES_CH_WEBHOOK}}
+      - SLACK_USER_NAME=CodeFresh
+      - "SLACK_ICON_EMOJI=:rocket:"
+      - SLACK_FALLBACK=Released to Production
+      - SLACK_COLOR=good
+      - SLACK_AUTHOR_NAME=CodeFresh Deploy
+      - SLACK_AUTHOR_LINK=https://codefresh.io
+      - SLACK_AUTHOR_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/small-cute-robot-square.png
+      - SLACK_TITLE=Released to Production
+      - SLACK_TITLE_LINK=${{CF_BUILD_URL}}
+      - "SLACK_TEXT=Released to production at api.${{DOMAIN}}, components.${{DOMAIN}}, and react.${{DOMAIN}}"
+      - SLACK_THUMB_URL=https://cloudposse.com/wp-conten/uploads/sites/29/2018/02/SquareLogo2.png
+      - SLACK_FOOTER=Kubernetes Deployment
+      - SLACK_FOOTER_ICON=https://cloudposse.com/wp-content/uploads/sites/29/2018/02/kubernetes.png
+      - SLACK_FIELD1_TITLE=Namespace
+      - SLACK_FIELD1_VALUE="production"
+      - SLACK_FIELD1_SHORT=true
+      - SLACK_FIELD2_TITLE=Repository
+      - SLACK_FIELD2_VALUE=${{CF_REPO_NAME}}
+      - SLACK_FIELD2_SHORT=true
+      - SLACK_FIELD3_TITLE=Commit
+      - SLACK_FIELD3_VALUE=${{CF_SHORT_REVISION}}
+      - SLACK_FIELD3_SHORT=true
+      - SLACK_FIELD4_TITLE=Author
+      - SLACK_FIELD4_VALUE=@${{CF_COMMIT_AUTHOR}}
+      - SLACK_FIELD4_SHORT=true
+      - SLACK_FIELD5_TITLE=Branch/Tag
+      - SLACK_FIELD5_VALUE=${{CF_BRANCH}}
+      - SLACK_FIELD5_SHORT=false
+      - SLACK_FIELD6_TITLE=Build URL
+      - SLACK_FIELD6_VALUE=${{CF_BUILD_URL}}
+      - SLACK_FIELD6_SHORT=false

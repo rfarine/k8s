@@ -1,0 +1,7 @@
+commonLabels:
+  environment: release
+commonAnnotations:
+  note: Release Components
+bases:
+- ../../base
+

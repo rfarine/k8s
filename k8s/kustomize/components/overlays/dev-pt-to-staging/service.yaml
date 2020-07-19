@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: components-service
+spec:
+  type: ExternalName
+  externalName: components-service.staging.svc.cluster.local
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: components
+

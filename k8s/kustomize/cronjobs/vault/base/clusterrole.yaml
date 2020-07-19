@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vault-deployment-restart
+rules:
+- apiGroups: [ "" ]
+  resources: [ "pods"]
+  verbs: [ "get", "list", "watch"]
+- apiGroups: [ "extensions" ]
+  resources: [ "deployments" ]
+  resourceNames: ["vault"]
+  verbs: [ "get", "list", "watch", "patch"]

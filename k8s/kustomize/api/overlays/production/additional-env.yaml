@@ -1,0 +1,4 @@
+BILLING:
+  {{- with secret "shared/billing" }}
+  encryptionType: {{ .Data.data.encryptionType }}
+  {{ end }}

@@ -1,0 +1,14 @@
+resources:
+- cronjob.yaml
+- serviceaccount.yaml
+- clusterrole.yaml
+- clusterrolebinding.yaml
+
+configMapGenerator:
+- name: vault-restart-configmap
+  files:
+  - restart-vault.sh
+
+generatorOptions:
+  disableNameSuffixHash: true
+

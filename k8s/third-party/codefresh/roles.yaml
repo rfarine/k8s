@@ -1,0 +1,42 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: codefresh-role
+rules:
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [ "apps", "extensions" ]
+    resources: [ "deployments" ]
+    verbs: [ "get", "list", "watch", "patch", "create", "delete" ]
+  - apiGroups: [ "extensions" ]
+    resources: [ "ingresses", "replicasets" ]
+    verbs: [ "get", "list", "watch", "patch", "create", "delete"]
+  - apiGroups: [ "autoscaling" ]
+    resources: [ "horizontalpodautoscalers" ]
+    verbs: [ "get", "list", "watch", "patch", "create", "delete"]
+  - apiGroups: [ "batch" ]
+    resources: [ "cronjobs" ]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [ "certmanager.k8s.io" ]
+    resources: [ "certificates" ]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: codefresh-user
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: codefresh-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: codefresh-role
+subjects:
+- kind: ServiceAccount
+  name: codefresh-user
+  namespace: kube-system

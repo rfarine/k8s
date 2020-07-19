@@ -1,0 +1,16 @@
+commonLabels:
+  app: react
+
+resources:
+- deployment.yaml
+- service.yaml
+- hpa.yaml
+
+configMapGenerator:
+- name: react-configmap
+  files:
+  - env.yaml
+  - entrypoint.sh
+
+generatorOptions:
+  disableNameSuffixHash: true

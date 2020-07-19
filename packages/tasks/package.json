@@ -1,0 +1,23 @@
+{
+  "name": "@k8s/tasks",
+  "version": "1.0.0",
+  "description": "Dev tasks",
+  "author": "Rae Farine <rfarine1027@gmail.com>",
+  "homepage": "https://github.com/rfarine/k8s#readme",
+  "license": "MIT",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rfarine/k8s.git"
+  },
+  "scripts": {
+    "start": "docker-compose --log-level ERROR up --abort-on-container-exit",
+    "stop:docker": "docker-compose down"
+  },
+  "bugs": {
+    "url": "https://github.com/rfarine/k8s/issues"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.7.6"
+  }
+}

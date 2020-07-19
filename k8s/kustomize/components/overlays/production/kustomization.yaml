@@ -1,0 +1,7 @@
+commonLabels:
+  environment: production
+commonAnnotations:
+  note: Production Components
+bases:
+- ../../base
+

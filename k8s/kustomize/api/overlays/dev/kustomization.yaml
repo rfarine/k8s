@@ -1,0 +1,26 @@
+commonLabels:
+  environment: dev
+commonAnnotations:
+  note: Dev API
+  pr-number: "{{ PR_NUMBER }}"
+bases:
+- ../common
+
+patches:
+- path: deployment.yaml
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: api
+- path: hpa.yaml
+  target:
+    group: autoscaling
+    version: v2beta2
+    kind: HorizontalPodAutoscaler
+
+configMapGenerator:
+- name: api-configmap
+  behavior: merge
+  files:
+  - dev.yaml

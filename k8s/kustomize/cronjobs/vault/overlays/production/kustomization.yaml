@@ -1,0 +1,12 @@
+namePrefix: production-
+commonLabels:
+  environment: production
+commonAnnotations:
+  note: Production Vault Restart Cronjob
+bases:
+- ../../base
+patchesStrategicMerge:
+- cronjob.yaml
+- serviceaccount.yaml
+- clusterrole.yaml
+- clusterrolebinding.yaml

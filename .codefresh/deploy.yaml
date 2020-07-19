@@ -1,0 +1,168 @@
+version: "1.0"
+stages:
+  - "prepare"
+  - "deploy"
+steps:
+  GetGitToken:
+    title: Reading GitHub token
+    image: codefresh/cli
+    stage: "prepare"
+    commands:
+      - cf_export GITHUB_TOKEN=$(codefresh get context github --decrypt -o yaml | yq -y .spec.data.auth.password)
+  Diff:
+    title: "Git diff"
+    type: "freestyle"
+    image: "bitnami/git:latest"
+    stage: "prepare"
+    commands:
+      - rm -rf k8s
+      - git clone https://rfarine:$GITHUB_TOKEN@github.com/rfarine/k8s.git
+      - ls
+      - cd k8s
+      - echo $CF_BRANCH
+      - git checkout "$CF_BRANCH"
+      - bash .codefresh/diff.sh
+    environment:
+      - CF_BRANCH=${{CF_BRANCH}}
+  Deploy:
+    type: "parallel"
+    stage: "deploy"
+    steps:
+      DeployAPI:
+        title: Deploy API
+        type: codefresh-run
+        arguments:
+          PIPELINE_ID: default/API
+          VARIABLE:
+            - CF_BRANCH="${{CF_BRANCH}}"
+            - CF_REVISION="${{CF_REVISION}}"
+            - CF_SHORT_REVISION="${{CF_SHORT_REVISION}}"
+            - CF_BRANCH_TAG_NORMALIZED="${{CF_BRANCH_TAG_NORMALIZED}}"
+            - CF_REPO_NAME="${{CF_REPO_NAME}}"
+            - CF_COMMIT_AUTHOR="${{CF_COMMIT_AUTHOR}}"
+            - CF_BUILD_URL="${{CF_BUILD_URL}}"
+            - NAMESPACE="${{NAMESPACE}}"
+            - OVERLAY="${{OVERLAY}}"
+            - PR_NUMBER="${{PR_NUMBER}}"
+            - SUBDOMAIN="${{SUBDOMAIN}}"
+            - API_URL=${{API_URL}}
+            - REACT_URL=${{REACT_URL}}
+            - COMPONENTS_URL=${{COMPONENTS_URL}}
+        when:
+          condition:
+            all:
+              apiChanged: '"${{API_CHANGED}}" == "true"'
+      DeployAPIDevPtToStaging:
+        title: Point API Service to Staging API
+        type: codefresh-run
+        arguments:
+          PIPELINE_ID: default/DevPointToStaging
+          VARIABLE:
+            - CF_REVISION="${{CF_REVISION}}"
+            - NAMESPACE="${{NAMESPACE}}"
+            - OVERLAY="dev-pt-to-staging"
+            - PR_NUMBER="${{PR_NUMBER}}"
+            - APP="api"
+        when:
+          condition:
+            all:
+              apiNeverChanged: '"${{API_CHANGED_OVERALL}}" == "false"'
+              isDevOverlay: '"${{OVERLAY}}" == "dev"'
+      DeployComponents:
+          title: Deploy Components
+          type: codefresh-run
+          arguments:
+            PIPELINE_ID: default/Components
+            VARIABLE:
+              - CF_BRANCH="${{CF_BRANCH}}"
+              - CF_REVISION="${{CF_REVISION}}"
+              - CF_SHORT_REVISION="${{CF_SHORT_REVISION}}"
+              - CF_BRANCH_TAG_NORMALIZED="${{CF_BRANCH_TAG_NORMALIZED}}"
+              - CF_REPO_NAME="${{CF_REPO_NAME}}"
+              - CF_COMMIT_AUTHOR="${{CF_COMMIT_AUTHOR}}"
+              - CF_BUILD_URL="${{CF_BUILD_URL}}"
+              - NAMESPACE="${{NAMESPACE}}"
+              - OVERLAY="${{OVERLAY}}"
+              - PR_NUMBER="${{PR_NUMBER}}"
+              - SUBDOMAIN="${{SUBDOMAIN}}"
+              - API_URL=${{API_URL}}
+              - REACT_URL=${{REACT_URL}}
+              - COMPONENTS_URL=${{COMPONENTS_URL}}
+          when:
+            condition:
+              all:
+                componentsChanged: '"${{COMPONENTS_CHANGED}}" == "true"'
+      DeployComponentsDevPtToStaging:
+        title: Point Components Service to Staging Components
+        type: codefresh-run
+        arguments:
+          PIPELINE_ID: default/DevPointToStaging
+          VARIABLE:
+            - CF_REVISION="${{CF_REVISION}}"
+            - NAMESPACE="${{NAMESPACE}}"
+            - OVERLAY="dev-pt-to-staging"
+            - PR_NUMBER="${{PR_NUMBER}}"
+            - APP="components"
+        when:
+          condition:
+            all:
+              componentsNeverChanged: '"${{COMPONENTS_CHANGED_OVERALL}}" == "false"'
+              isDevOverlay: '"${{OVERLAY}}" == "dev"'
+      DeployReact:
+        title: Deploy React
+        type: codefresh-run
+        arguments:
+          PIPELINE_ID: default/React
+          VARIABLE:
+            - CF_BRANCH="${{CF_BRANCH}}"
+            - CF_REVISION="${{CF_REVISION}}"
+            - CF_SHORT_REVISION="${{CF_SHORT_REVISION}}"
+            - CF_BRANCH_TAG_NORMALIZED="${{CF_BRANCH_TAG_NORMALIZED}}"
+            - CF_REPO_NAME="${{CF_REPO_NAME}}"
+            - CF_COMMIT_AUTHOR="${{CF_COMMIT_AUTHOR}}"
+            - CF_BUILD_URL="${{CF_BUILD_URL}}"
+            - NAMESPACE="${{NAMESPACE}}"
+            - OVERLAY="${{OVERLAY}}"
+            - PR_NUMBER="${{PR_NUMBER}}"
+            - SUBDOMAIN="${{SUBDOMAIN}}"
+            - API_URL=${{API_URL}}
+            - REACT_URL=${{REACT_URL}}
+            - COMPONENTS_URL=${{COMPONENTS_URL}}
+        when:
+          condition:
+            all:
+              reactChanged: '"${{REACT_CHANGED}}" == "true"'
+      DeployReactDevPtToStaging:
+        title: Point React Service to Staging MP
+        type: codefresh-run
+        arguments:
+          PIPELINE_ID: default/DevPointToStaging
+          VARIABLE:
+            - CF_REVISION="${{CF_REVISION}}"
+            - NAMESPACE="${{NAMESPACE}}"
+            - OVERLAY="dev-pt-to-staging"
+            - PR_NUMBER="${{PR_NUMBER}}"
+            - APP="react"
+        when:
+          condition:
+            all:
+              reactNeverChanged: '"${{REACT_CHANGED_OVERALL}}" == "false"'
+              isDevOverlay: '"${{OVERLAY}}" == "dev"'
+      UpdateNginx:
+        title: Update Nginx
+        type: codefresh-run
+        arguments:
+          PIPELINE_ID: default/UpdateNginx
+          VARIABLE:
+            - CF_BRANCH="${{CF_BRANCH}}"
+            - CF_REVISION="${{CF_REVISION}}"
+            - CF_SHORT_REVISION="${{CF_SHORT_REVISION}}"
+            - CF_BRANCH_TAG_NORMALIZED="${{CF_BRANCH_TAG_NORMALIZED}}"
+            - CF_REPO_NAME="${{CF_REPO_NAME}}"
+            - CF_COMMIT_AUTHOR="${{CF_COMMIT_AUTHOR}}"
+            - CF_BUILD_URL="${{CF_BUILD_URL}}"
+            - NAMESPACE="${{NAMESPACE}}"
+            - API_URL="${{API_URL}}"
+            - REACT_URL="${{REACT_URL}}"
+            - COMPONENTS_URL="${{COMPONENTS_URL}}"
+            - SUBDOMAIN="${{SUBDOMAIN}}"

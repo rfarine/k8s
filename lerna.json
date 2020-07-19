@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "packages": [
+    "packages/*"
+  ],
+  "npmClient": "yarn",
+  "useWorkspaces": true,
+  "command": {
+    "publish": {
+      "allowBranch": [
+        "master"
+      ],
+      "message": "chore(release): :tada: release %s \n \n [skip ci]",
+      "ignoreChanges": ["**/*.test.js", "**/*.md"]
+    },
+    "bootstrap": {
+      "npmClientArgs": [
+        "--no-package-lock"
+      ]
+    }
+  }
+}

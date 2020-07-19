@@ -1,0 +1,8 @@
+commonLabels:
+  environment: dev
+commonAnnotations:
+  note: Dev Vault
+
+resources:
+- cert.yaml
+- service.yaml

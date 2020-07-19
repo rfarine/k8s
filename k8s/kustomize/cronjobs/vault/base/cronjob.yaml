@@ -1,0 +1,32 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: vault-restart
+spec:
+  concurrencyPolicy: Forbid
+  schedule: '0 0 * * 0' # At 00:00 on Sunday
+  successfulJobsHistoryLimit: 0
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        spec:
+          serviceAccountName: vault-deployment-restart
+          restartPolicy: Never
+          volumes:
+          - name: vault-restart-config
+            configMap:
+              name: vault-restart-configmap
+              defaultMode: 0777
+          containers:
+            - name: kubectl
+              image: bitnami/kubectl
+              env:
+                - name: RESTART_VAULT
+                  value: /etc/vault-restart-config/restart-vault.sh
+              command: ["/bin/sh"]
+              args: ["-c", "$(RESTART_VAULT)"]
+              volumeMounts:
+                - name: vault-restart-config
+                  mountPath: /etc/vault-restart-config

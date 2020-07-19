@@ -1,0 +1,8 @@
+commonLabels:
+  environment: staging
+commonAnnotations:
+  note: Staging API
+bases:
+- ../../base
+patchesStrategicMerge:
+- deployment.yaml

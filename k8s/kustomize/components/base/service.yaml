@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: components-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: components
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3003

@@ -1,0 +1,9 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-deployment-restart
+  namespace: staging
+subjects:
+  - kind: ServiceAccount
+    name: vault-deployment-restart
+    namespace: staging

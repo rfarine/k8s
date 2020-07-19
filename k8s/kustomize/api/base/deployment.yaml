@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  minReadySeconds: 5
+  template:
+    metadata:
+      labels:
+        app: api
+        tier: backend
+    spec:
+      shareProcessNamespace: true
+
+      volumes:
+      - name: vault-token
+        emptyDir:
+          medium: Memory
+      - name: secrets
+        emptyDir: {}
+      - name: api-config
+        configMap:
+          name: api-configmap
+          defaultMode: 0777
+
+      securityContext:
+        fsGroup: 2000
+
+      initContainers:
+      # The vault-authenticator container authenticates the container using the
+      # kubernetes auth method and puts the resulting token on the filesystem.
+      - name: vault-authenticator
+        image: sethvargo/vault-kubernetes-authenticator:0.2.0
+        imagePullPolicy: IfNotPresent
+
+        volumeMounts:
+        - name: vault-token
+          mountPath: /var/run/secrets/vaultproject.io
+
+        env:
+        - name: VAULT_ADDR
+          valueFrom:
+            secretKeyRef:
+              name: vault-addr
+              key: value
+        - name: VAULT_K8S_MOUNT_PATH
+          value: k8s
+        - name: VAULT_ROLE
+          value: ops
+        - name: VAULT_CACERT
+          value: /vault/tls/tls.crt
+
+        securityContext:
+          allowPrivilegeEscalation: false
+
+      - name: consul-template
+        image: hashicorp/consul-template:0.20.0-light
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          capabilities:
+            add: ['SYS_PTRACE']
+        args:
+        - "-once"
+
+        volumeMounts:
+        - name: secrets
+          mountPath: /etc/secrets
+        - name: vault-token
+          mountPath: /var/run/secrets/vaultproject.io
+        - name: api-config
+          mountPath: /etc/api-config
+
+        env:
+        - name: VAULT_ADDR
+          valueFrom:
+            secretKeyRef:
+              name: vault-addr
+              key: value
+        - name: VAULT_CACERT
+          value: /vault/tls/tls.crt
+
+      containers:
+      - name: api
+        image: {{ IMAGE }}
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 3001
+        env:
+          - name: API_ENTRYPOINT
+            value: /etc/api-config/api-entrypoint.sh
+          - name: API_ENV
+            value: /etc/secrets/config
+          - name: ENVIRONMENT
+            value: {{ NAMESPACE }}
+        command: ["/bin/sh"]
+        args: ["-c", "$(API_ENTRYPOINT) $(API_ENV) $(ENVIRONMENT)"]
+        lifecycle:
+          preStop:
+            exec:
+              command: [
+                "/bin/sh", "-c", "killall node"
+              ]
+        volumeMounts:
+        - name: secrets
+          mountPath: /etc/secrets
+        - name: api-config
+          mountPath: /etc/api-config
+        resources:
+          requests:
+            memory: "400Mi"
+            cpu: 1
+          limits:
+            memory: "400Mi"
+            cpu: 1
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 160
+          timeoutSeconds: 2
+          failureThreshold: 3
